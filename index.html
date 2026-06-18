@@ -3159,6 +3159,31 @@ body.site-ar .checkout-total-row.final span:last-child {
   direction: ltr;
 }
 
+
+/* =====================================================
+   FIXED PRODUCT GALLERY SWIPE
+===================================================== */
+.gallery {
+  touch-action: pan-y !important;
+}
+
+.slider {
+  touch-action: pan-y !important;
+  will-change: transform;
+  cursor: grab;
+}
+
+.slider.is-dragging {
+  cursor: grabbing;
+  transition: none !important;
+}
+
+.slide,
+.slide img {
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+}
+
 </style>
 </head>
 
@@ -3873,7 +3898,7 @@ body.site-ar .checkout-total-row.final span:last-child {
           <div class="checkout-product-meta" id="checkoutProductMeta">Color: Black · Product: Redmi Watch 5 Active</div>
           <div class="checkout-payment-code">Payment code: <span id="checkoutPaymentCode">REDMI-WATCH-5-ACTIVE-BLACK</span></div>
           <div class="checkout-payment-desc" id="checkoutPaymentDescription">Black · Redmi Watch 5 Active</div>
-          <div class="checkout-product-price">EGP <span id="checkoutProductPrice">1,700</span><small id="checkoutProductDecimals">00</small></div>
+          <div class="checkout-product-price">EGP <span id="checkoutProductPrice">1,700.00</span><small id="checkoutProductDecimals">00</small></div>
         </div>
       </div>
     </section>
@@ -3994,10 +4019,10 @@ body.site-ar .checkout-total-row.final span:last-child {
         </div>
 
         <div class="checkout-summary-totals">
-          <div class="checkout-total-row"><span>Items</span><strong>EGP <span id="checkoutSubtotal">1,700</span></strong></div>
+          <div class="checkout-total-row"><span>Items</span><strong>EGP <span id="checkoutSubtotal">1,700.00</span></strong></div>
           <div class="checkout-total-row"><span>Delivery</span><strong style="color:#067d62">FREE</strong></div>
           <div class="checkout-total-row"><span>VAT</span><strong>Included</strong></div>
-          <div class="checkout-total-row final"><span>Order total</span><span>EGP <span id="checkoutTotal">1,700</span><small id="checkoutTotalDecimals">00</small></span></div>
+          <div class="checkout-total-row final"><span>Order total</span><span>EGP <span id="checkoutTotal">1,700.00</span><small id="checkoutTotalDecimals">00</small></span></div>
         </div>
 
         <div class="checkout-success" id="checkoutSuccessBox">Order details validated. Demo checkout completed successfully.</div>
@@ -4085,7 +4110,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const PRODUCT_OPTIONS = {
     Standard: {
       "Redmi Watch 5 Active": {
-        price: "1,700",
+        price: "1,700.00",
         decimals: "00",
         stock: "Only 2 left in stock - order...",
         monthly: "35.41",
@@ -5310,7 +5335,7 @@ document.addEventListener("DOMContentLoaded", function () {
       color: "Black",
       capacity: "Standard",
       style: "Redmi Watch 5 Active",
-      price: "1,700",
+      price: "1,700.00",
       decimals: "00",
       monthly: "35.41",
       image: images[0] || "redmi-1.png",
@@ -5715,7 +5740,7 @@ document.addEventListener("DOMContentLoaded", function () {
       product_color: "Black",
       product_capacity: "Standard",
       product_style: "Redmi Watch 5 Active",
-      product_price: "1,700",
+      product_price: "1,700.00",
       payment_code: "REDMI-WATCH-5-ACTIVE-BLACK",
       ...data
     });
@@ -6545,6 +6570,183 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   window.fixCheckoutTitleArabic = fixCheckoutTitleArabic;
+});
+</script>
+
+
+<script>
+/* =====================================================
+   FIXED PRODUCT GALLERY SWIPE — TOUCH + MOUSE + DOTS
+===================================================== */
+document.addEventListener("DOMContentLoaded", function () {
+  var gallery = document.querySelector(".gallery");
+  var slider = document.querySelector(".slider");
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var dots = Array.prototype.slice.call(document.querySelectorAll(".dot"));
+
+  if (!gallery || !slider || slides.length === 0) return;
+
+  var currentIndex = 0;
+  var startX = 0;
+  var startY = 0;
+  var currentX = 0;
+  var isDragging = false;
+  var isHorizontalSwipe = false;
+  var slideWidth = 0;
+
+  function getSlideWidth() {
+    return gallery.clientWidth || slider.clientWidth || window.innerWidth;
+  }
+
+  function clampIndex(index) {
+    return Math.max(0, Math.min(index, slides.length - 1));
+  }
+
+  function updateDots() {
+    dots.forEach(function (dot, index) {
+      dot.classList.toggle("active", index === currentIndex);
+    });
+  }
+
+  function goToSlide(index, animate) {
+    if (animate === undefined) animate = true;
+
+    currentIndex = clampIndex(index);
+    slideWidth = getSlideWidth();
+
+    slider.style.transition = animate ? "transform 0.3s ease" : "none";
+    slider.style.transform = "translateX(" + (-currentIndex * slideWidth) + "px)";
+
+    updateDots();
+    window.currentSlide = currentIndex;
+  }
+
+  function getPoint(event) {
+    if (event.touches && event.touches.length) {
+      return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+    }
+
+    if (event.changedTouches && event.changedTouches.length) {
+      return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+    }
+
+    return { x: event.clientX, y: event.clientY };
+  }
+
+  function startDrag(event) {
+    var point = getPoint(event);
+
+    startX = point.x;
+    startY = point.y;
+    currentX = startX;
+    isDragging = true;
+    isHorizontalSwipe = false;
+    slideWidth = getSlideWidth();
+
+    slider.classList.add("is-dragging");
+    slider.style.transition = "none";
+  }
+
+  function moveDrag(event) {
+    if (!isDragging) return;
+
+    var point = getPoint(event);
+    var diffX = point.x - startX;
+    var diffY = point.y - startY;
+
+    if (!isHorizontalSwipe) {
+      if (Math.abs(diffX) > 8 && Math.abs(diffX) > Math.abs(diffY)) {
+        isHorizontalSwipe = true;
+      } else if (Math.abs(diffY) > 10 && Math.abs(diffY) > Math.abs(diffX)) {
+        return;
+      }
+    }
+
+    if (isHorizontalSwipe && event.cancelable) {
+      event.preventDefault();
+    }
+
+    currentX = point.x;
+
+    var dragOffset = diffX;
+
+    if ((currentIndex === 0 && diffX > 0) || (currentIndex === slides.length - 1 && diffX < 0)) {
+      dragOffset = diffX * 0.28;
+    }
+
+    slider.style.transform = "translateX(" + ((-currentIndex * slideWidth) + dragOffset) + "px)";
+  }
+
+  function endDrag() {
+    if (!isDragging) return;
+
+    var diffX = currentX - startX;
+    var threshold = Math.max(55, slideWidth * 0.16);
+
+    slider.classList.remove("is-dragging");
+
+    if (isHorizontalSwipe && Math.abs(diffX) > threshold) {
+      if (diffX < 0) {
+        goToSlide(currentIndex + 1, true);
+      } else {
+        goToSlide(currentIndex - 1, true);
+      }
+    } else {
+      goToSlide(currentIndex, true);
+    }
+
+    isDragging = false;
+    isHorizontalSwipe = false;
+  }
+
+  dots.forEach(function (dot, index) {
+    dot.addEventListener("click", function (event) {
+      event.preventDefault();
+      goToSlide(index, true);
+    });
+  });
+
+  slider.addEventListener("touchstart", startDrag, { passive: true });
+  slider.addEventListener("touchmove", moveDrag, { passive: false });
+  slider.addEventListener("touchend", endDrag, { passive: true });
+  slider.addEventListener("touchcancel", endDrag, { passive: true });
+
+  slider.addEventListener("mousedown", function (event) {
+    if (event.button !== 0) return;
+    startDrag(event);
+  });
+
+  window.addEventListener("mousemove", moveDrag);
+  window.addEventListener("mouseup", endDrag);
+
+  slides.forEach(function (slide) {
+    slide.querySelectorAll("img").forEach(function (img) {
+      img.setAttribute("draggable", "false");
+      img.addEventListener("dragstart", function (event) {
+        event.preventDefault();
+      });
+    });
+  });
+
+  window.addEventListener("resize", function () {
+    goToSlide(currentIndex, false);
+  });
+
+  window.addEventListener("orientationchange", function () {
+    setTimeout(function () {
+      goToSlide(currentIndex, false);
+    }, 250);
+  });
+
+  window.goToSlide = goToSlide;
+  window.nextSlide = function () {
+    goToSlide(currentIndex + 1, true);
+  };
+  window.prevSlide = function () {
+    goToSlide(currentIndex - 1, true);
+  };
+
+  goToSlide(0, false);
 });
 </script>
 
